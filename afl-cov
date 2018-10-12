@@ -120,6 +120,9 @@ def process_afl_test_cases(cargs):
     cov['zero'] = {}
     cov['pos']  = {}
 
+    ### add write web report per %d minute in --live mode
+    time0 = time.time()
+    time1 = 0 # generate html report for fisrst calculate
     while True:
 
         if not import_fuzzing_dirs(cov_paths, cargs):
@@ -238,11 +241,34 @@ def process_afl_test_cases(cargs):
                     logr("[-] No new AFL test cases, sleeping for %d seconds" \
                             % cargs.sleep, cov_paths['log_file'], cargs)
                     time.sleep(cargs.sleep)
-                    continue
             else:
                 logr("[+] afl-fuzz appears to be stopped...",
                         cov_paths['log_file'], cargs)
                 break
+            time2 = time.time()
+            if cargs.genhtml_per_min > 0 and  (time2 - time1) >= cargs.genhtml_per_min * 60 :
+                if tot_files > 0:
+                    logr("[+] Processed %d / %d test cases.\n" \
+                            % (tot_files, len(afl_files)),
+                            cov_paths['log_file'], cargs)
+
+                    if cargs.coverage_at_exit:
+                        ### generate the code coverage stats for this test case
+                        lcov_gen_coverage(cov_paths, cargs)
+
+                        ### diff to the previous code coverage, look for new
+                        ### lines/functions, and write out results
+                        coverage_diff(curr_cycle, fuzz_dir, cov_paths,
+                                cov_paths['id_file'], cov, cargs)
+
+                    ### write out the final zero coverage and positive coverage reports
+                    write_zero_cov(cov['zero'], cov_paths, cargs)
+                    write_pos_cov(cov['pos'], cov_paths, cargs)
+
+                    if not cargs.disable_lcov_web:
+                        lcov_gen_coverage(cov_paths, cargs)
+                        gen_web_cov_report(fuzz_dir, cov_paths, cargs)
+                time1 = time2
         ### only go once through the loop unless we are in --live mode
         else:
             break
@@ -1148,7 +1174,7 @@ def parse_cmdline():
             default=False)
     p.add_argument("--coverage-at-exit", action='store_true',
             help="Only calculate coverage just before afl-cov exit.",
-            default=False)
+            default=False) # store at coverge_at_exit.It means that caluclate coverage after collect inputs from afl queue.
     p.add_argument("--sleep", type=int,
             help="In --live mode, # of seconds to sleep between checking for new queue files",
             default=60)
@@ -1202,7 +1228,8 @@ def parse_cmdline():
             help="Print version and exit", default=False)
     p.add_argument("-q", "--quiet", action='store_true',
             help="Quiet mode", default=False)
-
+    p.add_argument("--genhtml-per-min", type=int,
+            help="In live mode, generate html report per [int] minutes", default=-1)
     return p.parse_args()
 
 if __name__ == "__main__":
