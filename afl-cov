@@ -856,7 +856,7 @@ def is_bin_gcov_enabled(binary, cargs):
             False, cargs, WANT_OUTPUT)[1]:
         if ' __gcov' in line:
             if cargs.validate_args or cargs.gcov_check or cargs.gcov_check_bin:
-                print "[+] Binary '%s' is compiled with code coverage support gcc." % binary
+                print "[+] Binary '%s' is compiled with code coverage support via gcc." % binary
             rv = True
             break
 
@@ -928,7 +928,11 @@ def is_gcov_enabled(cargs):
         found_code_cov_binary = False
 
         for part in cargs.coverage_cmd.split(' '):
-            if part == '' or part[0] == ' ' or part[0] == '-':
+<<<<<<< HEAD
+            if not part or part[0] == ' ' or part[0] == '-':
+=======
+            if not part or part[0] == ' ' or part[0] == '-':
+>>>>>>> afl-cov/master
                 continue
             if (which(part)):
                 found_exec = True
